@@ -11,7 +11,7 @@ const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const SHEET_ID = process.env.SHEET_ID;
 const SHEET_NAME = process.env.SHEET_NAME || "Sheet174";
 
-// === Decode Google Credentials Base64 ===
+// === Decode Base64 Google Credentials ===
 let credentials;
 try {
   const decoded = Buffer.from(
@@ -42,49 +42,52 @@ app.post(`/webhook/${TELEGRAM_TOKEN}`, (req, res) => {
   res.sendStatus(200);
 });
 
-// === Health Check Route ===
+// === Health Check ===
 app.get("/", (req, res) =>
-  res.send("✅ Bot aktif di Render! (version base64 credentials)")
+  res.send("✅ Bot aktif di Render (mode nama kolom & baris mulai 2)")
 );
 
-// === Handle Telegram Messages ===
+// === Handle Message ===
 bot.on("message", async (msg) => {
   const text = msg.caption || msg.text || "";
-  const match = text.match(/(T\d{2})\/(\d+)/i);
+  // regex tangkap “nama/angka”
+  const match = text.match(/^(.+?)\/(\d+)$/);
 
   if (!match) return;
 
-  const kode = match[1].toUpperCase(); // T01 - T14
+  const nama = match[1].trim().toUpperCase(); // nama header (HIN MARYNAN, SI NAT, dst)
   const poin = match[2];
 
   try {
+    // Ambil header
     const headerRes = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
       range: `${SHEET_NAME}!1:1`,
     });
-
-    const headers = headerRes.data.values ? headerRes.data.values[0] : [];
-    const colIndex = headers.indexOf(kode);
+    const headers = headerRes.data.values ? headerRes.data.values[0].map(h => h.toUpperCase()) : [];
+    const colIndex = headers.indexOf(nama);
 
     if (colIndex === -1) {
-      bot.sendMessage(msg.chat.id, `⚠️ Kolom untuk kode ${kode} tidak ditemukan!`);
+      bot.sendMessage(msg.chat.id, `⚠️ Nama "${nama}" belum ada di header!`);
       return;
     }
 
+    // Ambil isi data mulai dari baris 2
     const dataRes = await sheets.spreadsheets.values.get({
       spreadsheetId: SHEET_ID,
-      range: `${SHEET_NAME}!A3:${String.fromCharCode(65 + headers.length - 1)}`,
+      range: `${SHEET_NAME}!A2:${String.fromCharCode(65 + headers.length - 1)}`,
     });
 
     const rows = dataRes.data.values || [];
 
+    // Cari baris kosong berikutnya di kolom tersebut
     let targetRow = rows.findIndex((row) => !row[colIndex] || row[colIndex] === "");
 
     if (targetRow === -1) targetRow = rows.length;
 
-    const rowNumber = targetRow + 3; // Mulai dari baris ke-3
-
+    const rowNumber = targetRow + 2; // mulai dari baris 2
     const colLetter = String.fromCharCode(65 + colIndex);
+
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
       range: `${SHEET_NAME}!${colLetter}${rowNumber}`,
@@ -94,7 +97,7 @@ bot.on("message", async (msg) => {
 
     bot.sendMessage(
       msg.chat.id,
-      `✅ Data disimpan!\nKode: ${kode}\nNilai: ${poin}\n📊 Baris ke-${rowNumber}`
+      `✅ Data disimpan!\nNama: ${nama}\nNilai: ${poin}\n📊 Baris ke-${rowNumber}`
     );
   } catch (err) {
     console.error("❌ Error Sheets:", err.message);
