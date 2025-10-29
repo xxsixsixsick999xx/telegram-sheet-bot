@@ -1,0 +1,4 @@
+# jangan upload file rahasia
+.env
+credentials.json
+encode.js

@@ -1,0 +1,17 @@
+{
+  "name": "telegram-sheet-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot untuk input nilai video (format T01/123) ke Google Sheets",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "googleapis": "^131.0.0",
+    "node-telegram-bot-api": "^0.63.0"
+  }
+}
